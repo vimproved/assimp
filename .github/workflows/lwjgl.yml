@@ -59,6 +59,44 @@ jobs:
           aws s3 cp libassimp.so.git s3://lwjgl-build/nightly/linux/${{matrix.ARCH}}/ $S3_PARAMS
         name: Upload git revision
 
+  linux-musl:
+    name: Linux Musl
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3
+    strategy:
+      fail-fast: false
+      matrix:
+        ARCH: [x64]
+        include:
+          - ARCH: x64
+    steps:
+      - run: |
+          apk add git
+        name: Upgrade git
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 3
+      - run: |
+          apk add build-base cmake aws-cli
+        name: Install build dependencies
+      - run: |
+          cmake -B build -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_TESTS=OFF -DASSIMP_BUILD_DRACO=ON -DASSIMP_BUILD_ZLIB=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
+        name: Configure build
+      - run: |
+          cmake --build build
+          strip build/bin/libassimp.so
+        name: Build
+      - run: |
+          aws s3 cp build/bin/libassimp.so s3://lwjgl-build/nightly/linux-musl/${{matrix.ARCH}}/ $S3_PARAMS
+          aws s3 cp build/bin/libdraco.so s3://lwjgl-build/nightly/linux-musl/${{matrix.ARCH}}/ $S3_PARAMS
+        name: Upload artifact
+      - run: |
+          git config --global --add safe.directory $PWD
+          git log --first-parent --pretty=format:%H HEAD~2..HEAD~1 > libassimp.so.git
+          aws s3 cp libassimp.so.git s3://lwjgl-build/nightly/linux-musl/${{matrix.ARCH}}/ $S3_PARAMS
+        name: Upload git revision
+
   linux-cross:
     name: Linux Cross
     runs-on: ubuntu-latest
